@@ -2,10 +2,10 @@ from __future__ import print_function
 import argparse
 import torch
 import torch.optim as optim
-from gcommand_loader import GCommandLoader
+from gcommand_loader_wav import GCommandLoader
 import numpy as np
 from model import LeNet, VGG
-from train import train, test
+from train import train, test, attack
 import os
 
 
@@ -85,8 +85,7 @@ else:
     model = LeNet()
 
 if args.cuda:
-    print('Using CUDA with {0} GPUs'.format(torch.cuda.device_count()))
-    model = torch.nn.DataParallel(model).cuda()
+    model = model.cuda()
 
 # define optimizer
 if args.optimizer.lower() == 'adam':
@@ -102,10 +101,11 @@ best_valid_loss = np.inf
 iteration = 0
 epoch = 1
 
-
 # trainint with early stopping
 while (epoch < args.epochs + 1) and (iteration < args.patience):
     train(train_loader, model, optimizer, epoch, args.cuda, args.log_interval)
+    # attack model
+    attack(test_loader, 0, model)
     valid_loss = test(valid_loader, model, args.cuda)
     if valid_loss > best_valid_loss:
         iteration += 1
@@ -115,7 +115,7 @@ while (epoch < args.epochs + 1) and (iteration < args.patience):
         iteration = 0
         best_valid_loss = valid_loss
         state = {
-            'net': model.module if args.cuda else model,
+            'net': model,
             'acc': valid_loss,
             'epoch': epoch,
         }
@@ -123,6 +123,9 @@ while (epoch < args.epochs + 1) and (iteration < args.patience):
             os.mkdir('checkpoint')
         torch.save(state, './checkpoint/ckpt.t7')
     epoch += 1
+
+# attack model
+attack(test_loader, 0, model)
 
 # test model
 test(test_loader, model, args.cuda)
