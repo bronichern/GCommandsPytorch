@@ -101,6 +101,9 @@ best_valid_loss = np.inf
 iteration = 0
 epoch = 1
 
+# attack model
+attack(test_loader, 0, model)
+
 # trainint with early stopping
 while (epoch < args.epochs + 1) and (iteration < args.patience):
     train(train_loader, model, optimizer, epoch, args.cuda, args.log_interval)

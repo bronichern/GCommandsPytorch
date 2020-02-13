@@ -66,5 +66,6 @@ def attack(dataloader, example_idx, model, n_iter=10, eps=0.1, sign=True):
             delta.data = delta + eps * torch.sign(delta.grad.data)
         else:
             delta.data = delta + eps * delta.grad.data
+        zero_gradients(delta)
         print(f"predicted class: {yhat.argmax()}, correct class: {y.item()}, loss: {loss.item()}")
 
