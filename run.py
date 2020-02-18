@@ -1,13 +1,15 @@
 from __future__ import print_function
 import argparse
+import pickle
+
 import torch
 import torch.optim as optim
 from gcommand_loader_wav import GCommandLoader
 import numpy as np
 from model import LeNet, VGG
-from train import train, test, attack
+from train import train, test
+from attacks import attack,attack_no_loader
 import os
-
 
 # Training settings
 parser = argparse.ArgumentParser(
@@ -49,6 +51,11 @@ parser.add_argument('--window_type', default='hamming',
                     help='window type for the stft')
 parser.add_argument('--normalize', default=True,
                     help='boolean, wheather or not to normalize the spect')
+
+
+parser.add_argument('--test_mode', default=False, help='Whether to run model for test only or not')
+parser.add_argument('--chkpt_path', default="", help='checkpoint path to load')
+
 
 args = parser.parse_args()
 
@@ -101,11 +108,17 @@ best_valid_loss = np.inf
 iteration = 0
 epoch = 1
 
+if args.test_mode:
+    checkpoint = torch.load(args.chkpt_path)
+    model.load_state_dict(checkpoint['net'].state_dict())
+    # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    model.eval()
+
 # attack model
 attack(test_loader, 0, model)
 
 # trainint with early stopping
-while (epoch < args.epochs + 1) and (iteration < args.patience):
+while (epoch < args.epochs + 1) and (iteration < args.patience) and not args.test_mode:
     train(train_loader, model, optimizer, epoch, args.cuda, args.log_interval)
     # attack model
     attack(test_loader, 0, model)
@@ -121,14 +134,24 @@ while (epoch < args.epochs + 1) and (iteration < args.patience):
             'net': model,
             'acc': valid_loss,
             'epoch': epoch,
+            'optimizer_state_dict:': optimizer.state_dict()
         }
         if not os.path.isdir('checkpoint'):
             os.mkdir('checkpoint')
-        torch.save(state, './checkpoint/ckpt.t7')
+        torch.save(state, './checkpoint/ckpt2.t7')
     epoch += 1
 
-# attack model
 attack(test_loader, 0, model)
+# attack model
+# with open("idxs", "rb") as f:
+#     idxs = pickle.load(f)
 
+# for i in idxs:
+#     try:
+#         attack(test_loader, i, model, save=True)#4250
+#     except:
+#         continue
+
+# attack_no_loader(test_loader, model)
 # test model
 test(test_loader, model, args.cuda)
